@@ -171,6 +171,10 @@
    ```bash
    rosrun robot_upstart install --user opticar opticar_base/launch/teleop.launch
    ```
+2. To remove this autostart job, run
+   ```bash
+   rosrun robot_upstart uninstall opticar
+   ```
 
 ## ROS joystick
 1. The elements of an XBox 360 Controller are as follows:
