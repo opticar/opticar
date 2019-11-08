@@ -2,34 +2,41 @@
 
 ## Prerequisites
 1. Raspberry Pi 3
-2. (optional) SK-Pang PiCAN 2 Hat, assembled on top of the Pi
-3. MicroSD-Card 32GB
+1. (optional) SK-Pang PiCAN 2 Hat, assembled on top of the Pi
+1. MicroSD-Card 32GB
 
 ## System setup
-1. Download Ubuntu MATE 16.04 LTS for Raspberry Pi from https://ubuntu-mate.org/download/#xenial
-2. Flash it to the SD card. When using Win32DiskImager on Windows 10, you might have to remove all existing partitions prior to flashing.
-3. Insert the card into the Pi
-4. Connect keyboard, mouse, HDMI, network and power
-5. Let the system boot and follow the system configuration wizard
-  * Hostname `opticar-adas`
-  * User name `opticar`, password `changeme`
-6. Using `raspi-config`, enable SSH
-7. Now you can use e.g. SmarTTY to connect to the Pi
-8. Update the system
+1. Download Ubuntu 18.04 for armhf (e.g. http://cdimage.ubuntu.com/releases/bionic/release/ubuntu-18.04.3-preinstalled-server-armhf+raspi3.img.xz)
+1. Flash it to the SD card. When using Win32DiskImager on Windows 10, you might have to remove all existing partitions prior to flashing.
+1. Insert the card into the Pi
+1. Connect keyboard, mouse, HDMI, network and power
+1. Let the system boot and log in as user `ubuntu` with password `ubuntu`
+1. You will be forced to change the password, so do that
+1. Change your keyboard layout if needed: `sudo dpkg-reconfigure keyboard-configuration`
+1. Install the Z shell: `sudo apt install zsh`
+1. Add the opticar user:
+   ```bash
+   sudo useradd -m -s /bin/zsh -G adm,dialout,cdrom,floppy,sudo,audio,dip,video,plugdev,lxd,netdev opticar
+   ```
+1. Set the password to `opticar`using `sudo passwd opticar`
+1. Log out and log back in as user `opticar`
+1. Setup your shell if prompted
+1. Set the hostname: `sudo hostnamectl set-hostname opticar-adas`
+1. Update the system
    ```bash
    sudo apt update
    sudo apt dist-upgrade
    ```
 
 ## ROS installation
-1. Follow the guide at http://wiki.ros.org/kinetic/Installation/Ubuntu
-2. Also install additional packages
+1. Follow the guide at http://wiki.ros.org/melodic/Installation/Ubuntu, Steps 1.1 to 1.7 (desktop installation is optional)
+1. Also install additional packages
    ```bash
-   sudo apt install ros-kinetic-rosserial-server ros-kinetic-rosserial-tivac python-catkin-tools ros-kinetic-imu-filter-madgwick ros-kinetic-gmapping ros-kinetic-map-server ros-kinetic-navigation ros-kinetic-joy ros-kinetic-rosbridge-suite ros-kinetic-teleop-twist-joy
+   sudo apt install ros-melodic-rosserial-server ros-melodic-rosserial-tivac python-catkin-tools ros-melodic-imu-filter-madgwick ros-melodic-gmapping ros-melodic-map-server ros-melodic-navigation ros-melodic-joy ros-melodic-rosbridge-suite ros-melodic-teleop-twist-joy dphys-swapfile ros-melodic-cv-bridge ros-melodic-image-transport ros-melodic-robot-upstart
    ```
-3. Install the embedded ARM toolchain and make sure you can connect to the Tiva board as user
+1. Install the embedded ARM toolchain and make sure you can connect to the Tiva board as user
    ```bash
-   sudo apt-get install gcc-arm-none-eabi
+   sudo apt-get install gcc-arm-none-eabi libusb-1.0-0-dev unzip
 
    git clone https://github.com/utzig/lm4tools.git
    cd lm4tools/lm4flash
@@ -38,96 +45,33 @@
 
    echo 'ATTRS{idVendor}=="1cbe", ATTRS{idProduct}=="00fd", GROUP="plugdev", MODE="0666"' | sudo tee /etc/udev/rules.d/99-stellaris-launchpad.rules
    ```
-4. Install Tivaware. Example below:
+1. Downlaod and install Tivaware. Example below:
    ```bash
-   mkdir <TivaWarePah>
-   cd <TivaWarePah>
+   cd $HOME
+   mkdir TivaWare
+   cd TivaWare
    mv <directory_downloaded>/SW-TM4C-2.1.1.71.exe
    unzip SW-TM4C-2.1.1.71.exe
    rm SW-TM4C-2.1.1.71.exe
    ```
-5. Create catkin workspace
+1. Create catkin workspace
       ```bash
       mkdir -p ~/catkin_ws/src
       cd ~/catkin_ws/
-      catkin_make
+      catkin build
       ```
-6. Setup environment variables in .bashrc
+1. Setup environment variables in .zshrc
    ```bash
-   source $HOME/catkin_ws/devel/setup.bash
-   export TIVA_WARE_PATH=$HOME/<path_to_tivaware_root>
-   export TIVA_FLASH_EXECUTABLE=lm4flash
+   echo 'source $HOME/catkin_ws/devel/setup.zsh' | tee -a ~/.zshrc
+   echo 'export TIVA_WARE_PATH=$HOME/TivaWare' | tee -a ~/.zshrc
+   echo 'export TIVA_FLASH_EXECUTABLE=lm4flash' | tee -a ~/.zshrc
    ```
+1. Use the updated configuration: `source ~/.zshrc`
 
 ## WiFi access point Installation
-1. Follow the guide at https://frillip.com/using-your-raspberry-pi-3-as-a-wifi-access-point-with-hostapd/ with the following changes:
-   * Mate Linux does not used dhcpcd, so just set the wifi interface address to 172.30.0.20/16
-     ```bash
-     allow-hotplug wlan0
-     iface wlan0 inet static
-       address 172.30.0.20
-       netmask 255.255.0.0
-       network 172.30.0.0
-       broadcast 172.30.255.255
-     ```
-   * Use this for hostapd.conf
-     ```bash
-     # This is the name of the WiFi interface we configured above
-     interface=wlan0
-
-     # Use the nl80211 driver with the brcmfmac driver
-     driver=nl80211
-
-     # This is the name of the network
-     ssid=changeme
-
-     # Use the 2.4GHz band
-     hw_mode=g
-
-     # Use channel 6
-     channel=6
-
-     # Enable 802.11n
-     ieee80211n=1
-
-     # Enable WMM
-     wmm_enabled=1
-
-     # Enable 40MHz channels with 20ns guard interval
-     ht_capab=[HT40][SHORT-GI-20][DSSS_CCK-40]
-
-     # Accept all MAC addresses
-     macaddr_acl=0
-
-     # Use WPA authentication
-     auth_algs=1
-
-     # Require clients to know the network name
-     ignore_broadcast_ssid=0
-
-     # Use WPA2
-     wpa=2
-
-     # Use a pre-shared key
-     wpa_key_mgmt=WPA-PSK
-
-     # The network passphrase
-     wpa_passphrase=changeme
-
-     # Use AES, instead of TKIP
-     rsn_pairwise=CCMP
-     ```
-   * Use this for dnsmasq.conf
-     ```bash
-     interface=wlan0      # Use interface wlan0  
-     listen-address=172.30.0.20 # Explicitly specify the address to listen on  
-     bind-interfaces      # Bind to the interface to make sure we aren't sending things  elsewhere  
-     server=8.8.8.8       # Forward DNS requests to Google DNS  
-     domain-needed        # Don't forward short names  
-     bogus-priv           # Never forward addresses in the non-routed address spaces.  
-     dhcp-range=172.30.0.100,172.30.0.150,12h # Assign IP addresses between 172.24.1.50 and 172.24.1.150 with a 12 hour lease time
-     ```
-  * When setting up IPv4 forwarding, take note of the changed network interface name for the ethernet interface
+1. Install the corresponding snap: `snap install wifi-ap`
+1. Configure the access point: `wifi-ap.config set wifi.security=wpa2 wifi.security-passphrase=opticaradas wifi.address=172.30.0.20 wifi.netmask=255.255.0.0 wifi.ssid=opticar dhcp.range-start=172.30.0.100 dhcp.range-stop=172.30.0.199 wifi.country-code=DE`
+1. Restart the access point: `wifi-ap.status restart-ap`
 
 ## CAN bus setup (optional)
 * Make sure the PiCAN2 hat is installed on the RPi
@@ -147,31 +91,34 @@
 * Install utilities: `sudo apt install can-utils`
 
 ## ROS software setup
+1. `cd ~/catkin_ws/src`
+1. `wstool init`
 1. `wstool set opticar_msgs --git https://github.com/opticar/opticar_msgs.git`
 1. `wstool set opticar_base --git https://github.com/opticar/opticar_base.git`
 1. `wstool update`
-1. Flash the software to the embedded board:
-   ```bash
-   catkin build opticar_base
-   catkin build --no-deps opticar_base --make-args opticar_base_tiva_flash
-   ```
 1. Create a `58-opticar.rules` file in `/etc/udev/rules.d/` with
    ```bash
    KERNEL=="ttyACM?", SUBSYSTEM=="tty", ATTRS{idVendor}=="1cbe", ATTRS{idProduct}=="00fd", MODE="0666" SYMLINK+="tiva"
    KERNEL=="js[0-9]*", ENV{ID_BUS}=="?*", ENV{ID_INPUT_JOYSTICK}=="?*", GROUP="input", MODE="0664"
    ```
+1. Reload udev rules: `sudo udevadm control --reload-rules && sudo udevadm trigger`
+1. Flash the software to the embedded board:
+   ```bash
+   catkin build opticar_base
+   catkin build --no-deps opticar_base --make-args opticar_base_tiva_flash
+   ```
 
 ## ROS testing
 1. One terminal running `roscore`
-2. One terminal running `rosrun rosserial_python serial_node.py _port:=/dev/tiva _baud:=115200`
-3. One terminal running `roslaunch rosbridge_server rosbridge_websocket.launch`
+1. One terminal running `rosrun rosserial_python serial_node.py _port:=/dev/tiva _baud:=115200`
+1. One terminal running `roslaunch rosbridge_server rosbridge_websocket.launch`
 
 ## ROS autostart
 1. In order to have a launch file (e.g. the teleop configuration) executed at startup, run
    ```bash
    rosrun robot_upstart install --user opticar opticar_base/launch/teleop.launch
    ```
-2. To remove this autostart job, run
+1. To remove this autostart job, run
    ```bash
    rosrun robot_upstart uninstall opticar
    ```

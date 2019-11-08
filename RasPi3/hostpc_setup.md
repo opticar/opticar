@@ -1,7 +1,7 @@
 # Host PC setup for Opticar ADAS
 
 ## Prerequisites
-1. Ubuntu 16.04 or Windows 10 1703 with WSL
+1. Ubuntu 18.04 or Windows 10 1703 with WSL
 2. ROS kinetic with wstool and catkin_tools
 
 ## ROS software setup
